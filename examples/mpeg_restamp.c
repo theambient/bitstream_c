@@ -119,21 +119,19 @@ static uint64_t handle_ts(uint64_t i_ts)
  *****************************************************************************/
 static void usage(const char *psz)
 {
-    fprintf(stderr, "usage: %s [<mtu>] < <input file> [> <output>]\n", psz);
+    fprintf(stderr, "usage: %s [offset] < <input file> [> <output>]\n", psz);
     exit(EXIT_FAILURE);
 }
 
 int main(int i_argc, char **ppsz_argv)
 {
-    if (i_argc > 2 || i_argc < 1 ||
+    if (i_argc > 2 &&
         (!strcmp(ppsz_argv[1], "-h") || !strcmp(ppsz_argv[1], "--help")))
         usage(ppsz_argv[0]);
 
     unsigned int i_mtu = TS_SIZE;
     if (i_argc == 2) {
-        i_mtu = strtoul(ppsz_argv[1], NULL, 0);
-        if (!i_mtu)
-            usage(ppsz_argv[0]);
+        i_pcr_offset = strtoul(ppsz_argv[1], NULL, 0);
     }
 
     for ( ; ; ) {
