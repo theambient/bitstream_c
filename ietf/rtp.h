@@ -33,6 +33,7 @@
 #ifndef __BITSTREAM_IETF_RTP_H__
 #define __BITSTREAM_IETF_RTP_H__
 
+#include <stdlib.h>
 #include <stdint.h>   /* uint8_t, uint16_t, etc... */
 #include <stdbool.h>  /* bool */
 
@@ -69,6 +70,16 @@ static inline void rtp_set_hdr(uint8_t *p_rtp)
 static inline bool rtp_check_hdr(const uint8_t *p_rtp)
 {
     return (p_rtp[0] & 0xc0) == 0x80;
+}
+
+static inline void rtp_set_padding(uint8_t *p_rtp)
+{
+    p_rtp[0] |= 0x20;
+}
+
+static inline bool rtp_check_padding(const uint8_t *p_rtp)
+{
+    return !!(p_rtp[0] & 0x20);
 }
 
 static inline void rtp_set_extension(uint8_t *p_rtp)
@@ -157,6 +168,19 @@ static inline void rtp_get_ssrc(const uint8_t *p_rtp, uint8_t pi_ssrc[4])
     pi_ssrc[3] = p_rtp[11];
 }
 
+static inline void rtp_set_int_ssrc(uint8_t *p_rtp, uint32_t i_ssrc)
+{
+    p_rtp[8] = (i_ssrc >> 24) & 0xff;
+    p_rtp[9] = (i_ssrc >> 16) & 0xff;
+    p_rtp[10] = (i_ssrc >> 8) & 0xff;
+    p_rtp[11] = i_ssrc & 0xff;
+}
+
+static inline uint32_t rtp_get_int_ssrc(const uint8_t *p_rtp)
+{
+    return (p_rtp[8] << 24) | (p_rtp[9] << 16) | (p_rtp[10] << 8) | p_rtp[11];
+}
+
 static inline uint8_t *rtp_extension(uint8_t *p_rtp)
 {
     return p_rtp + RTP_HEADER_SIZE + 4 * rtp_get_cc(p_rtp);
@@ -191,6 +215,16 @@ static inline uint8_t *rtp_payload(uint8_t *p_rtp)
     if (rtp_check_extension(p_rtp))
         i_size += 4 * (1 + rtpx_get_length(rtp_extension(p_rtp)));
     return p_rtp + i_size;
+}
+
+static inline size_t rtp_payload_size(uint8_t *p_rtp, size_t i_rtp_size)
+{
+    size_t i_payload_size = i_rtp_size - (rtp_payload(p_rtp) - p_rtp);
+    uint8_t i_padding_size = 0;
+    if (rtp_check_padding(p_rtp))
+        i_padding_size = p_rtp[i_rtp_size - 1];
+
+    return i_payload_size - i_padding_size;
 }
 
 #ifdef __cplusplus

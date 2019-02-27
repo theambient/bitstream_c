@@ -64,24 +64,33 @@ static inline void eit_print(uint8_t *p_eit,
     switch (i_print_type) {
     case PRINT_XML:
         pf_print(print_opaque,
-                "<EIT tableid=\"0x%02x\" type=\"%s\" service_id=\"%u\" version=\"%u\""
-                " current_next=\"%u\" tsid=\"%u\" onid=\"%u\">",
+                "<EIT tableid=\"0x%02x\" type=\"%s\" service_id=\"%u\""
+                " version=\"%u\" section=\"%u\" last_section=\"%u\""
+                " current_next=\"%u\" segment_last_section=\"%u\""
+                " tsid=\"%u\" onid=\"%u\">",
                  i_tid, psz_tid,
                  eit_get_sid(p_eit),
                  psi_get_version(p_eit),
+                 psi_get_section(p_eit),
+                 psi_get_lastsection(p_eit),
                  !psi_get_current(p_eit) ? 0 : 1,
+                 eit_get_segment_last_sec_number(p_eit),
                  eit_get_tsid(p_eit),
                  eit_get_onid(p_eit)
                 );
         break;
     default:
         pf_print(print_opaque,
-                 "new EIT tableid=0x%02x type=%s service_id=%u version=%u%s tsid=%u"
+                 "new EIT tableid=0x%02x type=%s service_id=%u version=%u%s"
+                 " section=%u/%u segment_last_section=%u tsid=%u"
                  " onid=%u",
                  i_tid, psz_tid,
                  eit_get_sid(p_eit),
                  psi_get_version(p_eit),
                  !psi_get_current(p_eit) ? " (next)" : "",
+                 psi_get_section(p_eit),
+                 psi_get_lastsection(p_eit),
+                 eit_get_segment_last_sec_number(p_eit),
                  eit_get_tsid(p_eit),
                  eit_get_onid(p_eit)
                 );
@@ -89,32 +98,31 @@ static inline void eit_print(uint8_t *p_eit,
 
     while ((p_event = eit_get_event(p_eit, j)) != NULL) {
         j++;
-        char start_str[24], duration_str[10];
+        char start_str[24];
         int duration, hour, min, sec;
         time_t start_ts;
 
         start_ts = dvb_time_format_UTC(eitn_get_start_time(p_event), NULL, start_str);
 
         dvb_time_decode_bcd(eitn_get_duration_bcd(p_event), &duration, &hour, &min, &sec);
-        sprintf(duration_str, "%02d:%02d:%02d", hour, min, sec);
 
         switch (i_print_type) {
         case PRINT_XML:
             pf_print(print_opaque, "<EVENT id=\"%u\" start_time=\"%ld\" start_time_dec=\"%s\""
-                                   " duration=\"%u\" duration_dec=\"%s\""
+                                   " duration=\"%u\" duration_dec=\"%u:%02u:%02u\""
                                    " running=\"%d\" free_CA=\"%d\">",
                      eitn_get_event_id(p_event),
                      start_ts, start_str,
-                     duration, duration_str,
+                     duration, hour, min, sec,
                      eitn_get_running(p_event),
                      eitn_get_ca(p_event)
                     );
             break;
         default:
-            pf_print(print_opaque, "  * EVENT id=%u start_time=%ld start_time_dec=\"%s\" duration=%u duration_dec=%s running=%d free_CA=%d",
+            pf_print(print_opaque, "  * EVENT id=%u start_time=%ld start_time_dec=\"%s\" duration=%u duration_dec=%u:%02u:%02u running=%d free_CA=%d",
                      eitn_get_event_id(p_event),
                      start_ts, start_str,
-                     duration, duration_str,
+                     duration, hour, min, sec,
                      eitn_get_running(p_event),
                      eitn_get_ca(p_event)
                     );

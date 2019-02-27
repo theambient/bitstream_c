@@ -97,7 +97,7 @@ static inline void desc66_print(const uint8_t *p_desc, f_print pf_print,
 
     for (i = 0; i < i_selector_byte_length; i++) {
         sprintf(psz_selector_byte + 2 * i, "%02x", p_selector_byte[i]);
-        if (p_selector_byte[i] >= 32 && p_selector_byte[i] <= 127 && p_selector_byte[i] != '"')
+        if (p_selector_byte[i] >= 48 && p_selector_byte[i] <= 127 && p_selector_byte[i] != '"')
             psz_selector_byte_txt[i] = p_selector_byte[i];
         else
             psz_selector_byte_txt[i] = '.';
@@ -109,10 +109,9 @@ static inline void desc66_print(const uint8_t *p_desc, f_print pf_print,
     case PRINT_XML:
         pf_print(opaque,
                  "<DATA_BROADCAST_ID_DESC broadcast_id=\"0x%04x\""
-                 " selector_byte=\"%s\" selector_byte_txt=\"%s\"/>",
+                 " selector_byte=\"%s\"/>",
                  desc66_get_broadcast_id(p_desc),
-                 psz_selector_byte,
-                 psz_selector_byte_txt
+                 psz_selector_byte
                 );
         break;
     default:

@@ -1,7 +1,7 @@
 /*****************************************************************************
  * mp2v.h: ISO/IEC 13818-2 (video)
  *****************************************************************************
- * Copyright (C) 2013 VideoLAN
+ * Copyright (C) 2013-2015 VideoLAN
  *
  * Authors: Christophe Massiot <massiot@via.ecp.fr>
  *
@@ -28,6 +28,7 @@
 /*
  * Normative references:
  *  - ISO/IEC 13818-2 (MPEG-2 video)
+ *  - ISO/IEC JTC1/SC29/WG11 MPEG2007/m14868 (high progressive profile)
  */
 
 #ifndef __BITSTREAM_MPEG_MP2V_H__
@@ -147,7 +148,7 @@ static inline void mp2vseq_set_vertical(uint8_t *p_mp2vseq, uint16_t i_vertical)
 
 static inline uint16_t mp2vseq_get_vertical(const uint8_t *p_mp2vseq)
 {
-    return ((p_mp2vseq[5] & 0xf) << 8) | p_mp2vseq[6] >> 4;
+    return ((p_mp2vseq[5] & 0xf) << 8) | p_mp2vseq[6];
 }
 
 static inline void mp2vseq_set_aspect(uint8_t *p_mp2vseq, uint8_t i_aspect)
@@ -283,11 +284,18 @@ static inline bool mp2vseq_get_nonintramatrix(const uint8_t *p_mp2vseq,
 #define MP2VSEQX_PROFILE_SNR_SCAL   (3 << 4)
 #define MP2VSEQX_PROFILE_SPAT_SCAL  (2 << 4)
 #define MP2VSEQX_PROFILE_HIGH       (1 << 4)
-#define MP2VSEQX_LEVEL_MASK         0xf
+#define MP2VSEQX_LEVEL_MASK         0x8f /* with escape bit */
 #define MP2VSEQX_LEVEL_LOW          10
 #define MP2VSEQX_LEVEL_MAIN         8
 #define MP2VSEQX_LEVEL_HIGH1440     6
 #define MP2VSEQX_LEVEL_HIGH         4
+#define MP2VSEQX_LEVEL_HIGHP        2
+#define MPV2SEQX_LEVEL_LOW_MV       0x8e
+#define MPV2SEQX_LEVEL_MAIN_MV      0x8d
+#define MPV2SEQX_LEVEL_HIGH_MV      0x8b
+#define MPV2SEQX_LEVEL_HIGH1440_MV  0x8a
+#define MPV2SEQX_LEVEL_MAIN_422     0x85
+#define MPV2SEQX_LEVEL_HIGH_422     0x82
 
 #define MP2VSEQX_CHROMA_420         1
 #define MP2VSEQX_CHROMA_422         2
@@ -314,6 +322,46 @@ static inline void mp2vseqx_set_profilelevel(uint8_t *p_mp2vseqx,
 static inline uint8_t mp2vseqx_get_profilelevel(const uint8_t *p_mp2vseqx)
 {
     return ((p_mp2vseqx[4] & 0x0f) << 4) | (p_mp2vseqx[5] >> 4);
+}
+
+static inline const char *mp2vseqx_get_profile_txt(uint8_t i_profilelevel)
+{
+    if (i_profilelevel & (1 << 7)) {
+        return i_profilelevel == MPV2SEQX_LEVEL_LOW_MV  ||
+               i_profilelevel == MPV2SEQX_LEVEL_MAIN_MV ||
+               i_profilelevel == MPV2SEQX_LEVEL_HIGH_MV ||
+               i_profilelevel == MPV2SEQX_LEVEL_HIGH1440_MV ? "Multi-view" :
+               i_profilelevel == MPV2SEQX_LEVEL_MAIN_422 ||
+               i_profilelevel == MPV2SEQX_LEVEL_HIGH_422 ? "4:2:2" : "Reserved";
+    }
+    else {
+        i_profilelevel &= 0x70;
+        return i_profilelevel == MP2VSEQX_PROFILE_SIMPLE ? "Simple" :
+               i_profilelevel == MP2VSEQX_PROFILE_MAIN ? "Main" :
+               i_profilelevel == MP2VSEQX_PROFILE_SNR_SCAL ? "SNR Scalable" :
+               i_profilelevel == MP2VSEQX_PROFILE_SPAT_SCAL ? "Spatially Scalable" :
+               i_profilelevel == MP2VSEQX_PROFILE_HIGH ? "High" : "Reserved";
+    }
+}
+
+static inline const char *mp2vseqx_get_level_txt(uint8_t i_profilelevel)
+{
+    if (i_profilelevel & (1 << 7)) {
+        return i_profilelevel == MPV2SEQX_LEVEL_LOW_MV ? "Low" :
+               i_profilelevel == MPV2SEQX_LEVEL_MAIN_MV ||
+               i_profilelevel == MPV2SEQX_LEVEL_MAIN_422 ? "Main" :
+               i_profilelevel == MPV2SEQX_LEVEL_HIGH1440_MV ||
+               i_profilelevel == MPV2SEQX_LEVEL_HIGH_422 ? "High 1440" :
+               i_profilelevel == MPV2SEQX_LEVEL_HIGH_MV  ? "High" : "Reserved";
+    }
+    else {
+        i_profilelevel &= 0xf;
+        return i_profilelevel == MP2VSEQX_LEVEL_LOW ? "Low" :
+               i_profilelevel == MP2VSEQX_LEVEL_MAIN ? "Main" :
+               i_profilelevel == MP2VSEQX_LEVEL_HIGH1440 ? "High 1440" :
+               i_profilelevel == MP2VSEQX_LEVEL_HIGH ? "High" :
+               i_profilelevel == MP2VSEQX_LEVEL_HIGHP ? "HighP" : "Reserved";
+    }
 }
 
 static inline void mp2vseqx_set_progressive(uint8_t *p_mp2vseqx)
@@ -452,6 +500,48 @@ static inline void mp2vseqdx_set_color(uint8_t *p_mp2vseqdx)
 static inline bool mp2vseqdx_get_color(const uint8_t *p_mp2vseqdx)
 {
     return !!(p_mp2vseqdx[4] & 0x1);
+}
+
+static inline void mp2vseqdx_set_primaries(uint8_t *p_mp2vseqdx,
+                                                 uint8_t i_primaries)
+{
+    mp2vseqdx_set_color(p_mp2vseqdx);
+    p_mp2vseqdx[5] = i_primaries;
+}
+
+static inline uint8_t mp2vseqdx_get_primaries(const uint8_t *p_mp2vseqdx)
+{
+    if (!mp2vseqdx_get_color(p_mp2vseqdx))
+        return 1;
+    return p_mp2vseqdx[5];
+}
+
+static inline void mp2vseqdx_set_transfer(uint8_t *p_mp2vseqdx,
+                                          uint8_t i_transfer)
+{
+    mp2vseqdx_set_color(p_mp2vseqdx);
+    p_mp2vseqdx[6] = i_transfer;
+}
+
+static inline uint8_t mp2vseqdx_get_transfer(const uint8_t *p_mp2vseqdx)
+{
+    if (!mp2vseqdx_get_color(p_mp2vseqdx))
+        return 1;
+    return p_mp2vseqdx[6];
+}
+
+static inline void mp2vseqdx_set_matrixcoeffs(uint8_t *p_mp2vseqdx,
+                                              uint8_t i_matrixcoeffs)
+{
+    mp2vseqdx_set_color(p_mp2vseqdx);
+    p_mp2vseqdx[7] = i_matrixcoeffs;
+}
+
+static inline uint8_t mp2vseqdx_get_matrixcoeffs(const uint8_t *p_mp2vseqdx)
+{
+    if (!mp2vseqdx_get_color(p_mp2vseqdx))
+        return 1;
+    return p_mp2vseqdx[7];
 }
 
 static inline void mp2vseqdx_set_horizontal(uint8_t *p_mp2vseqdx,
